@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BMW Generation Tree</title>
+<meta name="description" content="Interactive technology tree of every BMW production generation, from the 1927 Dixi to 2026.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <button class="icon-btn" id="btnFilters" aria-label="Open filters" aria-controls="sidebar">
+    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M3 5h18M6 12h12M10 19h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+    <span class="btn-label">Filters</span><span class="badge" id="filterBadge" hidden>0</span>
+  </button>
+  <div class="brand"><span class="roundel" aria-hidden="true"></span><span class="brand-text">BMW<b>GENERATION TREE</b></span></div>
+  <div class="search" role="search">
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="2" fill="none"/><path d="M16 16l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <input id="search" type="search" autocomplete="off" spellcheck="false" placeholder="Search: E46, M3, 1998, G80, E92 Coupé, 3 Series Touring…" aria-label="Search generations">
+    <div id="results" class="results" role="listbox" hidden></div>
+  </div>
+  <div class="top-actions">
+    <div class="seg" id="viewSeg" role="group" aria-label="Layout">
+      <button data-view="time" class="on" title="Chronological tree: vertical position = production year">Timeline</button>
+      <button data-view="family" title="Family view: generations stacked in order, ignoring the time scale">Families</button>
+    </div>
+    <button class="icon-btn" id="btnCsv" title="Export the currently filtered generations as CSV">
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg><span class="btn-label">CSV</span>
+    </button>
+    <button class="icon-btn" id="btnHelp" aria-label="How to navigate" title="How to navigate">?</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside id="sidebar" class="sidebar" aria-label="Filters">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="sidebar-head">
+      <h2>Filters</h2>
+      <button class="link-btn" id="btnClear">CLEAR ALL FILTERS</button>
+      <button class="icon-btn close-only" id="btnCloseFilters" aria-label="Close filters">✕</button>
+    </div>
+    <div class="sidebar-scroll">
+      <section class="stats" id="stats" aria-live="polite"></section>
+
+      <section>
+        <h3>Body style</h3>
+        <div class="chips" id="fBody"></div>
+      </section>
+
+      <section>
+        <h3>Production years</h3>
+        <div class="yearrow">
+          <label>From <select id="yFromSel"></select></label>
+          <label>To <select id="yToSel"></select></label>
+        </div>
+        <div class="dual" id="dual">
+          <div class="dual-track"><div class="dual-fill" id="dualFill"></div></div>
+          <input type="range" id="yFrom" aria-label="Start year">
+          <input type="range" id="yTo" aria-label="End year">
+        </div>
+        <div class="chips small" id="fDecades"></div>
+      </section>
+
+      <section>
+        <h3>Model family</h3>
+        <div class="chips small" id="fSeries"></div>
+      </section>
+
+      <section>
+        <h3>Chassis code</h3>
+        <input class="text" id="fCode" type="text" placeholder="E30, F30, G20, G80, F90, G05…" aria-label="Filter by chassis code" autocomplete="off" spellcheck="false">
+        <p class="hint">Comma-separated; matches the start of a code (E9 finds E90–E93).</p>
+      </section>
+
+      <section>
+        <h3>Type</h3>
+        <div class="chips small" id="fType"></div>
+      </section>
+
+      <section>
+        <h3>Status</h3>
+        <div class="chips small" id="fStatus"></div>
+      </section>
+
+      <section>
+        <h3>Chassis-code legend</h3>
+        <ul class="legend" id="legend"></ul>
+      </section>
+      <p class="foot">Data: <code>data/bmw-models.json</code>. Items marked <span class="unc-dot"></span> contain a date, code or link that is flagged as uncertain.</p>
+    </div>
+  </aside>
+
+  <main class="stage" id="stage">
+    <div class="mobile-switch" id="mobileSwitch" role="group" aria-label="Mobile layout">
+      <button data-mv="list" class="on">List</button><button data-mv="tree">Tree</button>
+    </div>
+
+    <div class="tree-wrap" id="treeWrap">
+      <svg id="svg" class="tree" role="application" aria-label="BMW generation tree. Drag to pan, scroll to zoom, select a node for details." tabindex="0">
+        <defs>
+          <linearGradient id="railFade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity="1"/><stop offset="1" stop-color="currentColor" stop-opacity="0.25"/></linearGradient>
+          <marker id="arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L8 4L0 8z" fill="#5b6572"/></marker>
+        </defs>
+        <g id="gContent"><g id="gGrid"></g><g id="gEdges"></g><g id="gHi"></g><g id="gNodes"></g></g>
+        <g id="gAxis"></g>
+        <g id="gHeaders"></g>
+        <rect id="corner" x="0" y="0" width="0" height="0"/>
+      </svg>
+      <div class="zoom-ctl" aria-label="Zoom and view controls">
+        <button id="zIn" aria-label="Zoom in">+</button>
+        <button id="zOut" aria-label="Zoom out">−</button>
+        <button id="zFit" title="Fit whole tree" aria-label="Fit whole tree">⤢</button>
+        <button id="zReset" title="Reset view" aria-label="Reset view">⟲</button>
+      </div>
+      <div class="hint-card" id="helpCard" hidden>
+        <b>How to navigate</b>
+        <ul>
+          <li><kbd>Drag</kbd> to pan, <kbd>scroll</kbd> or pinch to zoom</li>
+          <li><kbd>Click</kbd> a node for details, Wikipedia link and neighbours</li>
+          <li><kbd>Click</kbd> a lane title to collapse it; click a family band to collapse a group</li>
+          <li>Card top = production start; the coloured rail = how long it was built</li>
+          <li>Search a code (<code>E46</code>) or year (<code>1998</code>) to highlight and centre</li>
+        </ul>
+        <button class="primary" id="helpOk">Got it</button>
+      </div>
+      <div class="empty" id="emptyMsg" hidden>No generation matches these filters.<br><button class="primary" id="emptyClear">Clear all filters</button></div>
+    </div>
+
+    <div class="mobile-list" id="mobileList" aria-label="Generations by model family"></div>
+
+    <div class="tray" id="tray" hidden></div>
+  </main>
+
+  <aside id="drawer" class="drawer" aria-label="Generation details" aria-hidden="true">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <button class="icon-btn drawer-close" id="drawerClose" aria-label="Close details">✕</button>
+    <div id="drawerBody"></div>
+  </aside>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-label="Compare generations">
+    <button class="icon-btn modal-close" id="modalClose" aria-label="Close">✕</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+<div class="scrim" id="scrim" hidden></div>
+
+<script src="data/bmw-models.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
